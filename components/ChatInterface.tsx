@@ -97,7 +97,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ negotiationState, onFinis
       const initialMsgs: Message[] = [{ role: 'model', content: res.text, thought: res.thought, meters: res.meters }];
       const initialLeverage: string[] = [];
       const leverageMatch = res.thought.matchAll(/\[LEVERAGE:.*?:(.*?)\]/g);
-      for (const m of leverageMatch) initialLeverage.push(m[1]);
+      for (const m of Array.from(leverageMatch) as RegExpMatchArray[]) {
+        if (m[1]) initialLeverage.push(m[1]);
+      }
 
       const initialState: TacticalState = {
         messages: initialMsgs,
@@ -281,7 +283,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ negotiationState, onFinis
       setMeters(res.meters);
 
       const leverageMatch = res.thought.matchAll(/\[LEVERAGE:.*?:(.*?)\]/g);
-      const found = Array.from(leverageMatch).map(m => m[1]);
+      const found = (Array.from(leverageMatch) as RegExpMatchArray[]).map(m => m[1]).filter(Boolean) as string[];
       const updatedLeverage = Array.from(new Set([...leverage, ...found]));
       setLeverage(updatedLeverage);
 

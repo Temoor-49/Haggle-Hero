@@ -19,7 +19,7 @@ export class GeminiService {
           temperature: 0.1,
         }
       });
-      return response.text.trim().replace(/[.]/g, '') || "General Market";
+      return response.text?.trim().replace(/[.]/g, '') || "General Market";
     } catch (e) {
       console.error("Industry detection failed", e);
       return "General Market";
@@ -131,7 +131,8 @@ export class GeminiService {
     const parts: Part[] = [{ text: "Introduce yourself and state your opening position." }];
     if (image) parts.push({ inlineData: { data: image.split(',')[1], mimeType: "image/jpeg" } });
 
-    const res = await this.ai.models.generateContent({
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const res = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: [{ role: 'user', parts }],
       config: { 
@@ -151,7 +152,8 @@ export class GeminiService {
         : [{ text: m.content }]
     }));
 
-    const res = await this.ai.models.generateContent({
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const res = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: contents as any,
       config: { 
@@ -188,7 +190,8 @@ export class GeminiService {
       In the 'deal_summary', write a detailed blow-by-blow account of the simulated session.
     `;
 
-    const res = await this.ai.models.generateContent({
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const res = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
       config: { 
