@@ -57,6 +57,25 @@ const MoodBadge: React.FC<{ mood: string }> = ({ mood }) => {
   );
 };
 
+const LeverageBadge: React.FC<{ type: string; text: string }> = ({ type, text }) => {
+  const isFlaw = type.toUpperCase() === 'FLAW';
+  return (
+    <div className={`mt-3 flex items-center space-x-2 px-3 py-1.5 rounded-xl border animate-in slide-in-from-bottom-2 ${
+      isFlaw 
+      ? 'bg-brand-accent/10 border-brand-accent/20 text-brand-accent' 
+      : 'bg-brand-success/10 border-brand-success/20 text-brand-success'
+    }`}>
+      <div className="flex space-x-1">
+        <div className={`w-1 h-1 rounded-full animate-ping ${isFlaw ? 'bg-brand-accent' : 'bg-brand-success'}`}></div>
+        <div className={`w-1 h-1 rounded-full ${isFlaw ? 'bg-brand-accent' : 'bg-brand-success'}`}></div>
+      </div>
+      <span className="text-[9px] font-black uppercase tracking-widest leading-none">
+        {isFlaw ? 'Vulnerability spotted' : 'Asset confirmed'}: {text}
+      </span>
+    </div>
+  );
+};
+
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ negotiationState, onFinish }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -89,17 +108,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ negotiationState, onFinis
   const videoRef = useRef<HTMLVideoElement>(null);
   const gemini = useRef(new GeminiService());
 
+  const extractLeveragePoints = (thought: string) => {
+    const points: Array<{ type: string; text: string }> = [];
+    const leverageMatch = thought.matchAll(/\[LEVERAGE:(.*?):(.*?)\]/g);
+    for (const m of Array.from(leverageMatch) as RegExpMatchArray[]) {
+      if (m[1] && m[2]) {
+        points.push({ type: m[1], text: m[2] });
+      }
+    }
+    return points;
+  };
+
   useEffect(() => {
     const init = async () => {
       setIsTyping(true);
       const res = await gemini.current.start(negotiationState, negotiationState.initialImage);
       
       const initialMsgs: Message[] = [{ role: 'model', content: res.text, thought: res.thought, meters: res.meters }];
-      const initialLeverage: string[] = [];
-      const leverageMatch = res.thought.matchAll(/\[LEVERAGE:.*?:(.*?)\]/g);
-      for (const m of Array.from(leverageMatch) as RegExpMatchArray[]) {
-        if (m[1]) initialLeverage.push(m[1]);
-      }
+      const points = extractLeveragePoints(res.thought);
+      const initialLeverage = points.map(p => p.text);
 
       const initialState: TacticalState = {
         messages: initialMsgs,
@@ -282,8 +309,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ negotiationState, onFinis
       setMessages(updatedMessages);
       setMeters(res.meters);
 
-      const leverageMatch = res.thought.matchAll(/\[LEVERAGE:.*?:(.*?)\]/g);
-      const found = (Array.from(leverageMatch) as RegExpMatchArray[]).map(m => m[1]).filter(Boolean) as string[];
+      const points = extractLeveragePoints(res.thought);
+      const found = points.map(p => p.text);
       const updatedLeverage = Array.from(new Set([...leverage, ...found]));
       setLeverage(updatedLeverage);
 
@@ -461,37 +488,48 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ negotiationState, onFinis
         {/* MESSAGES LOG */}
         <div className="flex-1 flex flex-col min-w-0 bg-brand-black/20 z-10 relative">
           <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 md:px-16 py-8 space-y-8 custom-scrollbar scroll-smooth">
-            {messages.map((m, i) => (
-              <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                {m.role === 'model' && showThoughts && m.thought && (
-                  <div className="mb-4 w-full max-w-[95%] bg-brand-info/[0.04] border border-brand-info/10 rounded-2xl p-5 text-[11px] font-mono text-brand-info leading-relaxed backdrop-blur-sm">
-                    <div className="flex items-center space-x-2 mb-3">
-                      <div className="w-1.5 h-1.5 bg-brand-info rounded-full animate-pulse"></div>
-                      <span className="text-[8px] font-black uppercase tracking-[0.4em] opacity-50">Deep Neural Analysis</span>
-                    </div>
-                    {m.thought}
-                  </div>
-                )}
-                
-                <div className={`relative max-w-[90%] md:max-w-[80%] rounded-3xl p-5 md:p-6 border shadow-2xl ${
-                  m.role === 'user' 
-                    ? 'accent-gradient text-white rounded-tr-none border-white/20' 
-                    : 'bg-brand-gray-light/90 backdrop-blur-xl text-slate-100 rounded-tl-none border-white/10'
-                }`}>
-                  {m.role === 'model' && m.meters?.mood && (
-                    <MoodBadge mood={m.meters.mood} />
-                  )}
-                  {m.image && (
-                    <div className="mb-4 rounded-xl overflow-hidden border border-white/10 max-h-60 bg-black shadow-inner">
-                      <img src={m.image} alt="Evidence" className="w-full h-full object-contain" />
+            {messages.map((m, i) => {
+              const points = m.role === 'model' && m.thought ? extractLeveragePoints(m.thought) : [];
+              
+              return (
+                <div key={i} className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                  {m.role === 'model' && showThoughts && m.thought && (
+                    <div className="mb-4 w-full max-w-[95%] bg-brand-info/[0.04] border border-brand-info/10 rounded-2xl p-5 text-[11px] font-mono text-brand-info leading-relaxed backdrop-blur-sm">
+                      <div className="flex items-center space-x-2 mb-3">
+                        <div className="w-1.5 h-1.5 bg-brand-info rounded-full animate-pulse"></div>
+                        <span className="text-[8px] font-black uppercase tracking-[0.4em] opacity-50">Deep Neural Analysis</span>
+                      </div>
+                      {m.thought}
                     </div>
                   )}
-                  <div className="text-[14px] md:text-[16px] leading-relaxed font-bold tracking-tight whitespace-pre-wrap">
-                    {m.content}
+                  
+                  <div className={`relative max-w-[90%] md:max-w-[80%] rounded-3xl p-5 md:p-6 border shadow-2xl ${
+                    m.role === 'user' 
+                      ? 'accent-gradient text-white rounded-tr-none border-white/20' 
+                      : 'bg-brand-gray-light/90 backdrop-blur-xl text-slate-100 rounded-tl-none border-white/10'
+                  }`}>
+                    {m.role === 'model' && m.meters?.mood && (
+                      <MoodBadge mood={m.meters.mood} />
+                    )}
+                    {m.image && (
+                      <div className="mb-4 rounded-xl overflow-hidden border border-white/10 max-h-60 bg-black shadow-inner">
+                        <img src={m.image} alt="Evidence" className="w-full h-full object-contain" />
+                      </div>
+                    )}
+                    <div className="text-[14px] md:text-[16px] leading-relaxed font-bold tracking-tight whitespace-pre-wrap">
+                      {m.content}
+                    </div>
+                    {points.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {points.map((p, idx) => (
+                          <LeverageBadge key={idx} type={p.type} text={p.text} />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             {isTyping && (
               <div className="flex justify-start">
                 <div className="bg-white/5 rounded-2xl px-6 py-3 border border-white/5 backdrop-blur-md">
@@ -530,7 +568,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ negotiationState, onFinis
                 </div>
                 <button onClick={() => setSelectedImage(null)} className="p-3 text-slate-500 hover:text-brand-accent">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
                 </button>
               </div>

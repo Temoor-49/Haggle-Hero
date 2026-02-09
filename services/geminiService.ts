@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, GenerateContentResponse, Part } from "@google/genai";
 import { Message, NegotiationState, InternalMeters, PersonaTraits } from "../types";
 
@@ -6,7 +5,8 @@ export class GeminiService {
   private ai: GoogleGenAI;
 
   constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const apiKey = (process.env.API_KEY || "") as string;
+    this.ai = new GoogleGenAI({ apiKey });
   }
 
   async detectIndustry(item: string): Promise<string> {
@@ -131,7 +131,7 @@ export class GeminiService {
     const parts: Part[] = [{ text: "Introduce yourself and state your opening position." }];
     if (image) parts.push({ inlineData: { data: image.split(',')[1], mimeType: "image/jpeg" } });
 
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const ai = new GoogleGenAI({ apiKey: (process.env.API_KEY || "") as string });
     const res = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: [{ role: 'user', parts }],
@@ -152,7 +152,7 @@ export class GeminiService {
         : [{ text: m.content }]
     }));
 
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const ai = new GoogleGenAI({ apiKey: (process.env.API_KEY || "") as string });
     const res = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: contents as any,
@@ -190,7 +190,7 @@ export class GeminiService {
       In the 'deal_summary', write a detailed blow-by-blow account of the simulated session.
     `;
 
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+    const ai = new GoogleGenAI({ apiKey: (process.env.API_KEY || "") as string });
     const res = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
