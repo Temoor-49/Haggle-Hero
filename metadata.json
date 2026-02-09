@@ -1,0 +1,8 @@
+{
+  "name": "Haggle Hero Engine",
+  "description": "A multimodal stateful negotiation simulation that uses visual grounding and logic tracking to train master hagglers.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

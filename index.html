@@ -1,0 +1,192 @@
+
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Haggle Hero | Professional Negotiation Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+              mono: ['"JetBrains Mono"', 'monospace'],
+            },
+            colors: {
+              brand: {
+                black: 'var(--brand-black)',
+                gray: 'var(--brand-gray)',
+                'gray-light': 'var(--brand-gray-light)',
+                accent: 'var(--brand-accent)',
+                'accent-hover': 'var(--brand-accent-hover)',
+                success: 'var(--brand-success)',
+                warning: 'var(--brand-warning)',
+                info: 'var(--brand-info)'
+              }
+            },
+            animation: {
+              'pulse-slow': 'pulse 6s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'float': 'float 8s ease-in-out infinite',
+              'spin-slow': 'spin 12s linear infinite',
+            },
+            keyframes: {
+              float: {
+                '0%, 100%': { transform: 'translateY(0) scale(1)' },
+                '50%': { transform: 'translateY(-20px) scale(1.05)' },
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.40.0"
+  }
+}
+</script>
+    <style>
+      :root {
+        /* Base Palette (Tactical / Default) */
+        --brand-black: #020408;
+        --brand-gray: #0a0f1d;
+        --brand-gray-light: #161e31;
+        --brand-accent: #f43f5e;
+        --brand-accent-rgb: 244, 63, 94;
+        --brand-accent-hover: #e11d48;
+        --brand-success: #10b981;
+        --brand-warning: #f59e0b;
+        --brand-info: #0ea5e9;
+        --brand-info-rgb: 14, 165, 233;
+        
+        --glass-bg: rgba(10, 15, 29, 0.75);
+        --glass-border: rgba(255, 255, 255, 0.08);
+      }
+
+      [data-theme='corporate'] {
+        --brand-accent: #3b82f6;
+        --brand-accent-rgb: 59, 130, 246;
+        --brand-accent-hover: #2563eb;
+        --brand-gray: #0f172a;
+        --brand-info: #64748b;
+      }
+
+      [data-theme='midnight'] {
+        --brand-accent: #8b5cf6;
+        --brand-accent-rgb: 139, 92, 246;
+        --brand-accent-hover: #7c3aed;
+        --brand-gray: #0c0a1f;
+        --brand-info: #6366f1;
+      }
+
+      [data-theme='cyber'] {
+        --brand-accent: #00ff41;
+        --brand-accent-rgb: 0, 255, 65;
+        --brand-accent-hover: #00cc33;
+        --brand-gray: #010409;
+        --brand-info: #14b8a6;
+      }
+
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-color: var(--brand-black);
+        color: #f1f5f9;
+        -webkit-font-smoothing: antialiased;
+        font-feature-settings: "ss01", "ss02", "cv01", "cv02";
+      }
+
+      /* Improved Scrollbar */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.2);
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 10px;
+        border: 2px solid transparent;
+        background-clip: content-box;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.25);
+        background-clip: content-box;
+      }
+
+      .glass {
+        background: var(--glass-bg);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+        border: 1px solid var(--glass-border);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      }
+
+      .mesh-bg {
+        background: 
+          radial-gradient(at 0% 0%, rgba(var(--brand-accent-rgb), 0.08) 0, transparent 40%),
+          radial-gradient(at 100% 0%, rgba(var(--brand-info-rgb), 0.08) 0, transparent 40%),
+          radial-gradient(at 50% 100%, rgba(var(--brand-accent-rgb), 0.05) 0, transparent 40%);
+        pointer-events: none;
+        z-index: -1;
+      }
+
+      .accent-gradient {
+        background: linear-gradient(135deg, var(--brand-accent) 0%, var(--brand-accent-hover) 100%);
+      }
+
+      .scanline {
+        width: 100%;
+        height: 100px;
+        z-index: 10;
+        background: linear-gradient(0deg, rgba(0, 0, 0, 0) 0%, rgba(255, 255, 255, 0.015) 50%, rgba(0, 0, 0, 0) 100%);
+        opacity: 0.15;
+        position: absolute;
+        bottom: 100%;
+        animation: scanline 12s linear infinite;
+        pointer-events: none;
+      }
+      @keyframes scanline {
+        0% { transform: translateY(0); }
+        100% { transform: translateY(200vh); }
+      }
+
+      .layout-root {
+        height: 100vh;
+        width: 100vw;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        position: relative;
+        z-index: 1;
+      }
+
+      /* Button hover effects */
+      .btn-primary {
+        @apply accent-gradient hover:opacity-90 active:scale-95 transition-all duration-300 shadow-xl;
+      }
+
+      /* Focus Ring customization */
+      *:focus-visible {
+        outline: 2px solid var(--brand-accent);
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="mesh-bg fixed inset-0"></div>
+    <div class="scanline"></div>
+    <div id="root" class="layout-root"></div>
+  </body>
+</html>
