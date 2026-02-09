@@ -2,17 +2,13 @@ import { GoogleGenAI, GenerateContentResponse, Part } from "@google/genai";
 import { Message, NegotiationState, InternalMeters, PersonaTraits } from "../types";
 
 export class GeminiService {
-  private ai: GoogleGenAI;
-
-  constructor() {
-    const apiKey = (process.env.API_KEY || "") as string;
-    this.ai = new GoogleGenAI({ apiKey });
-  }
+  constructor() {}
 
   async detectIndustry(item: string): Promise<string> {
     if (!item || item.length < 3) return "";
     try {
-      const response = await this.ai.models.generateContent({
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Classify the following item into a single, concise industry or market category (e.g., 'Automotive', 'Jewelry', 'Real Estate', 'Tech', 'Antiques'). Respond with ONLY the category name: "${item}"`,
         config: {
@@ -131,7 +127,7 @@ export class GeminiService {
     const parts: Part[] = [{ text: "Introduce yourself and state your opening position." }];
     if (image) parts.push({ inlineData: { data: image.split(',')[1], mimeType: "image/jpeg" } });
 
-    const ai = new GoogleGenAI({ apiKey: (process.env.API_KEY || "") as string });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const res = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: [{ role: 'user', parts }],
@@ -152,7 +148,7 @@ export class GeminiService {
         : [{ text: m.content }]
     }));
 
-    const ai = new GoogleGenAI({ apiKey: (process.env.API_KEY || "") as string });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const res = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: contents as any,
@@ -190,7 +186,7 @@ export class GeminiService {
       In the 'deal_summary', write a detailed blow-by-blow account of the simulated session.
     `;
 
-    const ai = new GoogleGenAI({ apiKey: (process.env.API_KEY || "") as string });
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const res = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
