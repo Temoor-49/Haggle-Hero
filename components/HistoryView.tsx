@@ -59,7 +59,7 @@ const HistoryView: React.FC<HistoryViewProps> = ({ history, onClear }) => {
           type="button"
           onClick={(e) => {
             e.preventDefault();
-            e.stopPropagation(); // Ensure event doesn't bubble if there are parent handlers
+            e.stopPropagation();
             onClear();
           }}
           className="group flex items-center space-x-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-brand-accent transition-all pb-1 px-4 py-2 rounded-xl hover:bg-brand-accent/5 border border-transparent hover:border-brand-accent/20"
@@ -127,7 +127,6 @@ const HistoryView: React.FC<HistoryViewProps> = ({ history, onClear }) => {
                 </div>
               </div>
 
-              {/* Collapsible Tactical Breakdown */}
               <div className={`grid transition-all duration-500 ease-in-out ${isExpanded ? 'grid-rows-[1fr] opacity-100 mt-6' : 'grid-rows-[0fr] opacity-0'}`}>
                 <div className="overflow-hidden space-y-4">
                   <div className="flex flex-col md:flex-row gap-4">
