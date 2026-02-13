@@ -1,18 +1,18 @@
-
 export type AppStep = 'setup' | 'negotiate' | 'coach' | 'history';
-export type AppTheme = 'tactical' | 'corporate' | 'midnight' | 'cyber';
+export type AppTheme = 'tactical' | 'pro-blue' | 'emerald' | 'luxury';
 
 export interface InternalMeters {
   stress: number;
   patience: number;
   logic: number;
+  sarcasm: number;
   mood: string;
 }
 
 export interface PersonaTraits {
-  stubbornness: number; // 0-100
-  friendliness: number; // 0-100
-  formality: number;    // 0-100
+  stubbornness: number;
+  friendliness: number;
+  formality: number;
 }
 
 export interface CustomPersona {

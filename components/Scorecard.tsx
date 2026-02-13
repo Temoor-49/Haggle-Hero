@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { ScorecardData, Reputation } from '../types';
 
@@ -37,19 +36,82 @@ const Scorecard: React.FC<ScorecardProps> = ({ data, onReset }) => {
     localStorage.setItem('haggle_rep', JSON.stringify(current));
   }, [data.reputation_gain, isSuccess]);
 
-  const renderSummaryWithQuotes = (text: string) => {
-    if (!text) return "No summary available for this session.";
+  const renderContentWithHighlights = (text: string) => {
+    if (!text) return null;
+    
+    // Pattern to find quotes
     const parts = text.split(/("(?:[^"\\]|\\.)*")/g);
+    
     return parts.map((part, i) => {
       if (part.startsWith('"') && part.endsWith('"')) {
         return (
-          <span key={i} className="text-brand-info font-black italic bg-brand-info/10 px-1.5 rounded shadow-sm">
+          <span key={i} className="text-brand-info font-black italic bg-brand-info/10 px-2 py-0.5 rounded border border-brand-info/20 shadow-sm mx-1 inline-block transform -skew-x-6">
             {part}
           </span>
         );
       }
       return <span key={i}>{part}</span>;
     });
+  };
+
+  const renderStructuredSummary = () => {
+    const fullText = data.deal_summary || "";
+    const splitKey = /KEY MOMENTS:/i;
+    const hasKeyMoments = splitKey.test(fullText);
+
+    if (!hasKeyMoments) {
+      return (
+        <div className="bg-brand-black/40 p-10 rounded-[2.5rem] border border-white/5 relative group overflow-hidden">
+          <div className="flex items-center space-x-3 mb-6">
+            <span className="w-2 h-2 bg-brand-info rounded-full animate-pulse"></span>
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Narrative Analysis</span>
+          </div>
+          <div className="text-slate-300 text-sm font-semibold leading-relaxed tracking-tight italic uppercase">
+            {renderContentWithHighlights(fullText)}
+          </div>
+        </div>
+      );
+    }
+
+    const [narrative, moments] = fullText.split(splitKey);
+
+    return (
+      <div className="space-y-8">
+        {/* Narrative Section */}
+        <div className="bg-brand-black/40 p-10 rounded-[2.5rem] border border-white/5 relative group overflow-hidden">
+          <div className="flex items-center space-x-3 mb-6">
+            <span className="w-2 h-2 bg-brand-info rounded-full animate-pulse"></span>
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Strategic Overview</span>
+          </div>
+          <div className="text-slate-300 text-sm font-semibold leading-relaxed tracking-tight italic uppercase">
+            {renderContentWithHighlights(narrative.trim())}
+          </div>
+        </div>
+
+        {/* Key Moments Section */}
+        <div className="bg-brand-black/20 p-10 rounded-[2.5rem] border border-brand-info/10 relative group overflow-hidden">
+          <div className="flex items-center space-x-3 mb-8">
+             <div className="w-8 h-8 rounded-lg bg-brand-info/20 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-brand-info" viewBox="0 0 20 20" fill="currentColor">
+                   <path d="M2 5a2 2 0 012-2h7a2 2 0 012 2v4a2 2 0 01-2 2H9l-3 3v-3H4a2 2 0 01-2-2V5z" />
+                   <path d="M15 7v2a4 4 0 01-4 4H9.828l-1.766 1.767c.28.149.599.233.938.233h2l3 3v-3h2a2 2 0 002-2V9a2 2 0 00-2-2h-1z" />
+                </svg>
+             </div>
+             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-brand-info">Tactical Intel Feed</span>
+          </div>
+          <div className="space-y-6">
+            {moments.trim().split('\n').filter(line => line.trim().length > 0).map((moment, idx) => (
+              <div key={idx} className="flex items-start space-x-4 group/moment">
+                <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-info/40 group-hover/moment:bg-brand-info transition-colors"></div>
+                <div className="flex-1 text-[13px] text-slate-400 font-medium leading-relaxed border-b border-white/5 pb-4 group-last/moment:border-0">
+                  {renderContentWithHighlights(moment.replace(/^-\s*/, ''))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -84,25 +146,32 @@ const Scorecard: React.FC<ScorecardProps> = ({ data, onReset }) => {
           <StatBox label="Your Rank" value={rep.title} accent="text-brand-warning" icon="🎖️" />
         </div>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-          <div className="bg-brand-black/40 p-10 rounded-[2.5rem] border border-white/5 relative group overflow-hidden">
-            <div className="flex items-center space-x-3 mb-6">
-              <span className="w-2 h-2 bg-brand-info rounded-full animate-pulse"></span>
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Summary</span>
-            </div>
-            <div className="text-slate-300 text-sm font-semibold leading-relaxed tracking-tight italic uppercase">
-              {renderSummaryWithQuotes(data.deal_summary || "")}
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12 items-start">
+          {/* Summary Column */}
+          <div className="space-y-8">
+             {renderStructuredSummary()}
           </div>
 
-          <div className="bg-brand-black/40 p-10 rounded-[2.5rem] border border-white/5 relative group overflow-hidden">
+          {/* Tips Column */}
+          <div className="bg-brand-black/40 p-10 rounded-[2.5rem] border border-white/5 relative group overflow-hidden h-full">
             <div className="flex items-center space-x-3 mb-6">
               <span className="w-2 h-2 bg-brand-accent rounded-full"></span>
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Coach Tip</span>
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Pro Coach Tip</span>
             </div>
-            <p className="text-slate-400 text-[13px] italic font-bold leading-relaxed tracking-tight border-l-2 border-brand-accent/30 pl-6">
+            <p className="text-slate-400 text-[14px] italic font-bold leading-relaxed tracking-tight border-l-2 border-brand-accent/30 pl-6">
               "{data.coach_tip}"
             </p>
+            <div className="mt-8 pt-8 border-t border-white/5">
+               <div className="flex items-center justify-between mb-4">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Reputation Delta</span>
+                  <span className={`text-[10px] font-mono font-bold ${data.reputation_gain >= 0 ? 'text-brand-success' : 'text-brand-accent'}`}>
+                     {data.reputation_gain >= 0 ? '+' : ''}{data.reputation_gain}
+                  </span>
+               </div>
+               <div className="h-1 w-full bg-brand-black rounded-full overflow-hidden">
+                  <div className={`h-full transition-all duration-1000 ${data.reputation_gain >= 0 ? 'bg-brand-success' : 'bg-brand-accent'}`} style={{ width: `${Math.abs(data.reputation_gain)}%` }}></div>
+               </div>
+            </div>
           </div>
         </div>
 

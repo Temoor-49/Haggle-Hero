@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { NegotiationState, CustomPersona, PersonaTraits } from '../types';
 import { GeminiService } from '../services/geminiService';
@@ -8,31 +7,69 @@ interface SetupFormProps {
 }
 
 const DEFAULT_PERSONAS = [
-  { id: 'vendor', name: 'Stubborn Street Vendor', icon: '🏪', bg: 'from-orange-500/10' },
-  { id: 'hr', name: 'Ice-Cold HR Director', icon: '🏢', bg: 'from-blue-500/10' },
-  { id: 'landlord', name: 'Greedy Landlord', icon: '🏠', bg: 'from-green-500/10' },
-  { id: 'pawn', name: 'Skeptic Pawn Shop Owner', icon: '💎', bg: 'from-purple-500/10' },
-  { id: 'car_dealer', name: 'Shady Used Car Dealer', icon: '🚗', bg: 'from-red-500/10' },
-  { id: 'estate_agent', name: 'Calculating Estate Agent', icon: '🏘️', bg: 'from-cyan-500/10' },
-  { id: 'art_collector', name: 'Demanding Art Collector', icon: '🖼️', bg: 'from-amber-500/10' },
+  { id: 'vendor', name: 'Street Vendor', icon: '🏪', bg: 'from-orange-500/10' },
+  { id: 'hr', name: 'HR Director', icon: '🏢', bg: 'from-blue-500/10' },
+  { id: 'landlord', name: 'Strict Landlord', icon: '🏠', bg: 'from-emerald-500/10' },
+  { id: 'pawn', name: 'Pawn Shop Owner', icon: '💎', bg: 'from-purple-500/10' },
+  { id: 'car_dealer', name: 'Used Car Dealer', icon: '🚗', bg: 'from-rose-500/10' },
+  { id: 'estate_agent', name: 'Estate Agent', icon: '🏘️', bg: 'from-cyan-500/10' },
+  { id: 'art_collector', name: 'Art Collector', icon: '🖼️', bg: 'from-amber-500/10' },
 ];
 
+const ICON_OPTIONS = ['👤', '🤖', '🤵', '👩‍💼', '🕵️', '🤴', '🦁', '🐍', '🧙'];
+const COLOR_OPTIONS = [
+  { id: 'blue', class: 'from-blue-500/20', color: 'bg-blue-500' },
+  { id: 'emerald', class: 'from-emerald-500/20', color: 'bg-emerald-500' },
+  { id: 'rose', class: 'from-rose-500/20', color: 'bg-rose-500' },
+  { id: 'amber', class: 'from-amber-500/20', color: 'bg-amber-500' },
+  { id: 'indigo', class: 'from-indigo-500/20', color: 'bg-indigo-500' },
+];
+
+const TraitSlider: React.FC<{
+  label: string;
+  value: number;
+  onChange: (val: number) => void;
+  accent: string;
+}> = ({ label, value, onChange, accent }) => (
+  <div className="space-y-2">
+    <div className="flex justify-between items-center">
+      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{label}</label>
+      <span className={`text-[10px] font-mono font-bold ${accent}`}>{value}%</span>
+    </div>
+    <input
+      type="range"
+      min="0"
+      max="100"
+      value={value}
+      onChange={(e) => onChange(parseInt(e.target.value))}
+      className="w-full h-1 bg-brand-black rounded-lg appearance-none cursor-pointer accent-brand-accent"
+    />
+  </div>
+);
+
 const SetupForm: React.FC<SetupFormProps> = ({ onStart }) => {
-  const [item, setItem] = useState('Vintage Rolex Watch');
+  const [item, setItem] = useState('Classic Watch');
   const [role, setRole] = useState<'buyer' | 'seller'>('buyer');
   const [selectedPersonaId, setSelectedPersonaId] = useState(DEFAULT_PERSONAS[0].id);
-  const [basePrice, setBasePrice] = useState('12000');
-  const [targetPrice, setTargetPrice] = useState('10000');
+  const [basePrice, setBasePrice] = useState('5000');
+  const [targetPrice, setTargetPrice] = useState('4200');
   const [difficulty, setDifficulty] = useState<'easy' | 'pro' | 'insane'>('pro');
   const [initialImage, setInitialImage] = useState<string | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
-  const [detectedIndustry, setDetectedIndustry] = useState<string>("");
+  const [detectedIndustry, setDetectedIndustry] = useState<string>("Luxury Goods");
   const [isDetecting, setIsDetecting] = useState(false);
+
+  // Leverage Points
+  const [leveragePoints, setLeveragePoints] = useState<Array<{ id: string; type: 'flaw' | 'strength'; text: string; value: number }>>([]);
+  const [newPointText, setNewPointText] = useState('');
+  const [newPointType, setNewPointType] = useState<'flaw' | 'strength'>('strength');
 
   const [customPersonas, setCustomPersonas] = useState<CustomPersona[]>([]);
   const [isCreatingCustom, setIsCreatingCustom] = useState(false);
   const [newPersonaName, setNewPersonaName] = useState('');
+  const [newPersonaIcon, setNewPersonaIcon] = useState(ICON_OPTIONS[0]);
+  const [newPersonaBg, setNewPersonaBg] = useState(COLOR_OPTIONS[0].class);
   const [newPersonaTraits, setNewPersonaTraits] = useState<PersonaTraits>({
     stubbornness: 50,
     friendliness: 50,
@@ -46,45 +83,22 @@ const SetupForm: React.FC<SetupFormProps> = ({ onStart }) => {
   useEffect(() => {
     const saved = localStorage.getItem('custom_personas');
     if (saved) {
-      try {
-        setCustomPersonas(JSON.parse(saved));
-      } catch (e) {
-        console.error("Failed to load custom personas", e);
-      }
+      try { setCustomPersonas(JSON.parse(saved)); } catch (e) {}
     }
-
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
+    return () => { if (stream) stream.getTracks().forEach(track => track.stop()); };
   }, [stream]);
 
   useEffect(() => {
     const timer = setTimeout(async () => {
-      if (item.trim().length > 3) {
+      if (item.trim().length > 2) {
         setIsDetecting(true);
         const industry = await gemini.current.detectIndustry(item);
         setDetectedIndustry(industry);
         setIsDetecting(false);
-
-        if (!isCreatingCustom && !customPersonas.find(p => p.id === selectedPersonaId)) {
-          const indLower = industry.toLowerCase();
-          if (indLower.includes('car') || indLower.includes('automotive')) {
-            setSelectedPersonaId('car_dealer');
-          } else if (indLower.includes('jewelry') || indLower.includes('gold') || indLower.includes('pawn')) {
-            setSelectedPersonaId('pawn');
-          } else if (indLower.includes('real estate') || indLower.includes('property')) {
-            setSelectedPersonaId('landlord');
-          } else if (indLower.includes('art')) {
-            setSelectedPersonaId('art_collector');
-          }
-        }
       }
-    }, 1000);
-
+    }, 800);
     return () => clearTimeout(timer);
-  }, [item, isCreatingCustom, customPersonas, selectedPersonaId]);
+  }, [item]);
 
   const startCamera = async () => {
     try {
@@ -92,17 +106,7 @@ const SetupForm: React.FC<SetupFormProps> = ({ onStart }) => {
       setStream(s);
       if (videoRef.current) videoRef.current.srcObject = s;
       setIsCameraOpen(true);
-    } catch (err) {
-      console.error("Camera access denied", err);
-    }
-  };
-
-  const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
-    setIsCameraOpen(false);
+    } catch (err) {}
   };
 
   const capturePhoto = () => {
@@ -114,7 +118,8 @@ const SetupForm: React.FC<SetupFormProps> = ({ onStart }) => {
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0);
         setInitialImage(canvas.toDataURL('image/jpeg'));
-        stopCamera();
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        setIsCameraOpen(false);
       }
     }
   };
@@ -128,14 +133,30 @@ const SetupForm: React.FC<SetupFormProps> = ({ onStart }) => {
     }
   };
 
+  const handleAddLeveragePoint = () => {
+    if (!newPointText.trim()) return;
+    const newPoint = {
+      id: crypto.randomUUID(),
+      type: newPointType,
+      text: newPointText,
+      value: newPointType === 'strength' ? 20 : -20
+    };
+    setLeveragePoints([...leveragePoints, newPoint]);
+    setNewPointText('');
+  };
+
+  const removeLeveragePoint = (id: string) => {
+    setLeveragePoints(leveragePoints.filter(p => p.id !== id));
+  };
+
   const handleSaveCustomPersona = () => {
     if (!newPersonaName.trim()) return;
     const newPersona: CustomPersona = {
       id: `custom_${Date.now()}`,
       name: newPersonaName,
       traits: { ...newPersonaTraits },
-      icon: '👤',
-      bg: 'from-brand-accent/10',
+      icon: newPersonaIcon,
+      bg: newPersonaBg,
     };
     const updated = [...customPersonas, newPersona];
     setCustomPersonas(updated);
@@ -143,14 +164,7 @@ const SetupForm: React.FC<SetupFormProps> = ({ onStart }) => {
     setSelectedPersonaId(newPersona.id);
     setIsCreatingCustom(false);
     setNewPersonaName('');
-  };
-
-  const handleDeleteCustomPersona = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    const updated = customPersonas.filter(p => p.id !== id);
-    setCustomPersonas(updated);
-    localStorage.setItem('custom_personas', JSON.stringify(updated));
-    if (selectedPersonaId === id) setSelectedPersonaId(DEFAULT_PERSONAS[0].id);
+    setNewPersonaTraits({ stubbornness: 50, friendliness: 50, formality: 50 });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -164,6 +178,7 @@ const SetupForm: React.FC<SetupFormProps> = ({ onStart }) => {
     const matchedDefault = DEFAULT_PERSONAS.find(p => p.id === selectedPersonaId);
     if (matchedDefault) {
       personaName = matchedDefault.name;
+      personaTraits = { stubbornness: 50, friendliness: 50, formality: 50 };
     } else {
       const matchedCustom = customPersonas.find(p => p.id === selectedPersonaId);
       if (matchedCustom) {
@@ -172,21 +187,8 @@ const SetupForm: React.FC<SetupFormProps> = ({ onStart }) => {
       }
     }
 
-    if (!personaTraits) {
-      personaTraits = { stubbornness: 50, friendliness: 50, formality: 50 };
-    }
+    if (!personaTraits) personaTraits = { stubbornness: 50, friendliness: 50, formality: 50 };
     
-    let aiTarget: number;
-    let aiFloor: number;
-
-    if (role === 'buyer') {
-      aiTarget = marketVal * 1.25;
-      aiFloor = Math.max(targetVal * 1.05, marketVal * 0.9);
-    } else {
-      aiTarget = marketVal * 0.75;
-      aiFloor = Math.min(targetVal * 0.95, marketVal * 1.1);
-    }
-
     const state: NegotiationState = {
       item, role, persona: personaName, personaTraits, difficulty,
       initialImage: initialImage || undefined,
@@ -194,12 +196,12 @@ const SetupForm: React.FC<SetupFormProps> = ({ onStart }) => {
       marketValue: marketVal,
       targetDealPrice: targetVal,
       hiddenState: {
-        targetPrice: aiTarget,
-        floorPrice: aiFloor,
+        targetPrice: role === 'buyer' ? marketVal * 1.2 : marketVal * 0.8,
+        floorPrice: role === 'buyer' ? targetVal * 1.05 : targetVal * 0.95,
         patienceMeter: 100,
         logicScore: 0
       },
-      leveragePoints: []
+      leveragePoints
     };
     onStart(state);
   };
@@ -207,258 +209,286 @@ const SetupForm: React.FC<SetupFormProps> = ({ onStart }) => {
   const allPersonas = [...DEFAULT_PERSONAS, ...customPersonas];
 
   return (
-    <div className="w-full max-w-[1240px] flex flex-col lg:flex-row h-full max-h-[90vh] bg-brand-gray/40 border border-white/5 rounded-[2.5rem] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)] animate-in fade-in slide-in-from-bottom-8 duration-700 glass relative">
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '32px 32px' }}></div>
-      
-      {/* LEFT SECTION: MAIN FORM */}
-      <div className="flex-1 flex flex-col p-5 md:p-7 lg:p-8 border-b lg:border-b-0 lg:border-r border-white/5 min-h-0 overflow-hidden z-10">
-        <div className="shrink-0 mb-4">
-          <div className="flex items-center space-x-3 mb-1.5">
-            <span className="w-6 h-1 accent-gradient rounded-full"></span>
-            <span className="text-[9px] font-black uppercase tracking-[0.4em] text-brand-accent">Mission Parameters</span>
+    <div className="w-full max-w-7xl bg-brand-gray border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row h-full max-h-[92vh]">
+      {/* FORM SECTION */}
+      <div className="flex-1 p-8 overflow-y-auto custom-scrollbar border-r border-white/5">
+        <div className="mb-8 flex justify-between items-start">
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-1">Setup Your Deal</h2>
+            <p className="text-sm text-slate-400">Configure what you're negotiating and with whom.</p>
           </div>
-          <h2 className="text-2xl font-black tracking-tighter text-white leading-tight uppercase italic">
-            New <span className="text-slate-500">Operation</span>
-          </h2>
+          
+          {/* MICRO INITIATE BUTTON */}
+          <button 
+            type="submit" 
+            form="setup-form"
+            className="accent-gradient p-3 rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all group flex items-center justify-center"
+            title="Initiate Negotiation"
+          >
+             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 1.414L10.586 9H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd" />
+             </svg>
+          </button>
         </div>
-        
-        <form id="negotiation-setup" onSubmit={handleSubmit} className="flex-1 flex flex-col space-y-4 min-h-0 overflow-y-auto custom-scrollbar pr-2 pb-2">
-          {/* ITEM NAME */}
-          <div className="space-y-1.5 relative">
-            <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 block ml-1">Negotiation Subject</label>
-            <div className="relative">
-              <input
-                type="text" value={item} onChange={(e) => setItem(e.target.value)}
-                className="w-full bg-brand-black/60 border border-white/10 rounded-xl px-4 py-3 text-sm text-white font-bold focus:ring-2 focus:ring-brand-accent/50 outline-none transition-all placeholder:text-slate-700 shadow-inner group"
-                placeholder="Item or Service Name" required
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center">
-                {isDetecting ? (
-                  <div className="w-3.5 h-3.5 border-2 border-brand-info/30 border-t-brand-info rounded-full animate-spin"></div>
-                ) : detectedIndustry ? (
-                  <div className="flex items-center space-x-1.5 bg-brand-info/10 border border-brand-info/20 px-2.5 py-1 rounded-full">
-                    <span className="w-1 h-1 bg-brand-info rounded-full"></span>
-                    <span className="text-[8px] font-black text-brand-info uppercase tracking-widest">{detectedIndustry}</span>
+
+        <form id="setup-form" onSubmit={handleSubmit} className="space-y-6">
+          <div className="flex gap-6">
+            <div className="shrink-0">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Item Image</label>
+              <div className="w-24 h-24 bg-brand-black border border-white/10 rounded-2xl overflow-hidden relative group">
+                {initialImage ? (
+                  <img src={initialImage} className="w-full h-full object-cover" />
+                ) : isCameraOpen ? (
+                  <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex flex-col">
+                    <button type="button" onClick={startCamera} className="flex-1 hover:bg-white/5 flex items-center justify-center text-xl" title="Take Photo">📸</button>
+                    <button type="button" onClick={() => fileInputRef.current?.click()} className="flex-1 border-t border-white/5 hover:bg-white/5 flex items-center justify-center text-xl" title="Upload Image">📁</button>
                   </div>
-                ) : null}
+                )}
+                {isCameraOpen && <button type="button" onClick={capturePhoto} className="absolute bottom-1 left-1/2 -translate-x-1/2 bg-brand-success text-white text-[8px] font-bold px-2 py-1 rounded-full">SNAP</button>}
+                <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept="image/*" />
+              </div>
+            </div>
+
+            <div className="flex-1 space-y-4">
+              <div className="space-y-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">What are you trading?</label>
+                <div className="relative">
+                  <input 
+                    type="text" value={item} onChange={(e) => setItem(e.target.value)} 
+                    className="w-full bg-brand-black border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:ring-1 focus:ring-brand-accent/50 outline-none"
+                    placeholder="e.g., Rare Collectible"
+                  />
+                  {isDetecting && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center space-x-2">
+                       <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest">Scanning</span>
+                       <div className="w-3 h-3 border-2 border-brand-accent border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
+                </div>
+                {detectedIndustry && (
+                   <div className="mt-2 animate-in fade-in slide-in-from-top-1">
+                      <div className="inline-flex items-center space-x-2 bg-brand-info/10 border border-brand-info/20 px-3 py-1 rounded-full">
+                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-brand-info" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 8l2.55 3.4A1 1 0 0116 13H6a3 3 0 01-3-3V6zm3 1a1 1 0 000 2h3a1 1 0 100-2H6z" clipRule="evenodd" />
+                         </svg>
+                         <span className="text-[9px] font-bold text-brand-info uppercase tracking-widest">Market Industry: {detectedIndustry}</span>
+                      </div>
+                   </div>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Market Value ($)</label>
+                  <input type="number" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} className="w-full bg-brand-black border border-white/10 rounded-xl px-4 py-2 text-sm font-mono text-white outline-none" />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Your Goal ($)</label>
+                  <input type="number" value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} className="w-full bg-brand-black border border-white/10 rounded-xl px-4 py-2 text-sm font-mono text-white outline-none" />
+                </div>
               </div>
             </div>
           </div>
 
-          {/* PRICING GRID */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 block ml-1">Market Val ($)</label>
-              <input 
-                type="number" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} 
-                className="w-full bg-brand-black/60 border border-white/10 rounded-xl px-4 py-3 text-sm text-white font-mono font-bold focus:ring-2 focus:ring-brand-accent/50 outline-none transition-all shadow-inner" 
-                required 
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 block ml-1">Target Price ($)</label>
-              <input 
-                type="number" value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} 
-                className="w-full bg-brand-black/60 border border-white/10 rounded-xl px-4 py-3 text-sm text-white font-mono font-bold focus:ring-2 focus:ring-brand-accent/50 outline-none transition-all shadow-inner" 
-                required 
-              />
-            </div>
-          </div>
-
-          {/* ROLE & DIFFICULTY GRID */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 block ml-1">Perspective</label>
-              <div className="flex p-1 bg-brand-black/60 rounded-xl border border-white/10 shadow-inner">
-                <button type="button" onClick={() => setRole('buyer')} className={`flex-1 py-2 rounded-lg font-black uppercase text-[9px] tracking-[0.2em] transition-all ${role === 'buyer' ? 'accent-gradient text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>Buyer</button>
-                <button type="button" onClick={() => setRole('seller')} className={`flex-1 py-2 rounded-lg font-black uppercase text-[9px] tracking-[0.2em] transition-all ${role === 'seller' ? 'accent-gradient text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>Seller</button>
+            <div className="space-y-1">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Your Role</label>
+              <div className="flex p-1 bg-brand-black rounded-xl border border-white/10">
+                <button type="button" onClick={() => setRole('buyer')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${role === 'buyer' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Buyer</button>
+                <button type="button" onClick={() => setRole('seller')} className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${role === 'seller' ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-slate-300'}`}>Seller</button>
               </div>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 block ml-1">Difficulty</label>
-              <div className="grid grid-cols-3 gap-1 p-1 bg-brand-black/60 rounded-xl border border-white/10 shadow-inner">
+            <div className="space-y-1">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Difficulty</label>
+              <div className="flex p-1 bg-brand-black rounded-xl border border-white/10">
                 {(['easy', 'pro', 'insane'] as const).map(d => (
-                  <button 
-                    key={d} type="button" onClick={() => setDifficulty(d)} 
-                    className={`py-2 rounded-lg text-[8px] font-black uppercase tracking-[0.1em] transition-all ${
-                      difficulty === d ? 'bg-white/10 text-white' : 'text-slate-600 hover:text-slate-400'
-                    }`}
-                  >
-                    {d}
-                  </button>
+                  <button key={d} type="button" onClick={() => setDifficulty(d)} className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase transition-all ${difficulty === d ? 'bg-brand-accent/20 text-brand-accent' : 'text-slate-500 hover:text-slate-300'}`}>{d}</button>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* PERSONA LAB - Tightened Card */}
-          <div className="bg-brand-black/30 border border-white/5 rounded-2xl p-4 space-y-3">
-            <div className="flex justify-between items-center">
-              <h3 className="text-[8px] font-black uppercase tracking-[0.2em] text-brand-info">Psychological Profile</h3>
+          {/* LEVERAGE POINTS */}
+          <div className="bg-brand-black/30 border border-white/5 rounded-2xl p-6 space-y-4">
+            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tactical Leverage (Strengths & Flaws)</label>
+            <div className="flex gap-2">
+              <select 
+                value={newPointType} 
+                onChange={(e) => setNewPointType(e.target.value as 'flaw' | 'strength')}
+                className="bg-brand-black border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none"
+              >
+                <option value="strength">Strength</option>
+                <option value="flaw">Flaw</option>
+              </select>
+              <input 
+                type="text" 
+                value={newPointText} 
+                onChange={(e) => setNewPointText(e.target.value)}
+                placeholder="e.g. Rare edition, Missing box..."
+                className="flex-1 bg-brand-black border border-white/10 rounded-xl px-4 py-2 text-xs text-white outline-none"
+              />
               <button 
                 type="button" 
-                onClick={() => setIsCreatingCustom(!isCreatingCustom)}
-                className="px-2 py-1 bg-brand-info/10 border border-brand-info/20 rounded-md text-[8px] font-black uppercase text-brand-info hover:bg-brand-info hover:text-white transition-all"
+                onClick={handleAddLeveragePoint}
+                className="bg-brand-info/20 text-brand-info border border-brand-info/30 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-brand-info hover:text-white transition-all"
               >
-                {isCreatingCustom ? 'Cancel' : 'Tweak Personality'}
+                Add
+              </button>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {leveragePoints.map(point => (
+                <div 
+                  key={point.id} 
+                  className={`flex items-center space-x-2 px-3 py-1.5 rounded-full border text-[10px] font-bold uppercase tracking-wider ${
+                    point.type === 'strength' 
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500' 
+                    : 'bg-rose-500/10 border-rose-500/30 text-rose-500'
+                  }`}
+                >
+                  <span>{point.type === 'strength' ? '↑' : '↓'} {point.text}</span>
+                  <button onClick={() => removeLeveragePoint(point.id)} className="hover:scale-125 transition-transform">×</button>
+                </div>
+              ))}
+              {leveragePoints.length === 0 && <p className="text-[9px] text-slate-600 italic">No leverage points defined.</p>}
+            </div>
+          </div>
+
+          <div className="bg-brand-black/30 border border-white/5 rounded-2xl p-6">
+            <div className="flex justify-between items-center mb-6">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Negotiator Profiles</span>
+              <button 
+                type="button" 
+                onClick={() => setIsCreatingCustom(!isCreatingCustom)} 
+                className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full border transition-all ${
+                  isCreatingCustom ? 'border-brand-accent text-brand-accent hover:bg-brand-accent/10' : 'border-white/10 text-slate-500 hover:text-white hover:border-white/20'
+                }`}
+              >
+                {isCreatingCustom ? 'Cancel Customization' : 'Create Custom Negotiator'}
               </button>
             </div>
 
             {isCreatingCustom ? (
-              <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                <input 
-                  type="text" 
-                  value={newPersonaName} 
-                  onChange={e => setNewPersonaName(e.target.value)}
-                  className="w-full bg-brand-black/60 border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none"
-                  placeholder="Persona Identity Name"
-                />
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { key: 'stubbornness' as keyof PersonaTraits, label: 'Stubborn' },
-                    { key: 'friendliness' as keyof PersonaTraits, label: 'Friendly' },
-                    { key: 'formality' as keyof PersonaTraits, label: 'Formal' },
-                  ].map(trait => (
-                    <div key={trait.key} className="space-y-1">
-                      <div className="flex justify-between">
-                        <label className="text-[7px] font-bold uppercase text-slate-500">{trait.label}</label>
-                        <span className="text-[7px] font-mono text-brand-info">{newPersonaTraits[trait.key]}%</span>
-                      </div>
+              <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Profile Name</label>
                       <input 
-                        type="range" 
-                        min="0" max="100" 
-                        value={newPersonaTraits[trait.key]} 
-                        onChange={e => setNewPersonaTraits({...newPersonaTraits, [trait.key]: parseInt(e.target.value)})}
-                        className="w-full h-1 bg-brand-black rounded-lg appearance-none cursor-pointer accent-brand-info"
+                        type="text" 
+                        value={newPersonaName} 
+                        onChange={e => setNewPersonaName(e.target.value)} 
+                        placeholder="e.g. The Shark" 
+                        className="w-full bg-brand-black border border-white/10 rounded-lg px-3 py-2 text-xs text-white outline-none focus:ring-1 focus:ring-brand-accent/40" 
                       />
                     </div>
-                  ))}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select Icon</label>
+                      <div className="grid grid-cols-5 gap-2">
+                        {ICON_OPTIONS.map(icon => (
+                          <button 
+                            key={icon} 
+                            type="button" 
+                            onClick={() => setNewPersonaIcon(icon)} 
+                            className={`w-full aspect-square rounded-lg flex items-center justify-center text-lg transition-all ${
+                              newPersonaIcon === icon ? 'bg-brand-accent/20 border border-brand-accent shadow-lg shadow-brand-accent/10' : 'bg-brand-black border border-white/5 hover:bg-white/5'
+                            }`}
+                          >
+                            {icon}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-4 bg-brand-black/40 p-4 rounded-xl border border-white/5">
+                    <TraitSlider 
+                      label="Stubbornness" 
+                      value={newPersonaTraits.stubbornness} 
+                      onChange={(v) => setNewPersonaTraits(prev => ({...prev, stubbornness: v}))} 
+                      accent="text-rose-500"
+                    />
+                    <TraitSlider 
+                      label="Friendliness" 
+                      value={newPersonaTraits.friendliness} 
+                      onChange={(v) => setNewPersonaTraits(prev => ({...prev, friendliness: v}))} 
+                      accent="text-emerald-500"
+                    />
+                    <TraitSlider 
+                      label="Formality" 
+                      value={newPersonaTraits.formality} 
+                      onChange={(v) => setNewPersonaTraits(prev => ({...prev, formality: v}))} 
+                      accent="text-blue-500"
+                    />
+                  </div>
                 </div>
+                
                 <button 
                   type="button" 
-                  onClick={handleSaveCustomPersona}
+                  onClick={handleSaveCustomPersona} 
                   disabled={!newPersonaName.trim()}
-                  className="w-full py-2 bg-brand-info/20 border border-brand-info/40 rounded-lg text-[8px] font-black uppercase text-brand-info hover:bg-brand-info hover:text-white transition-all disabled:opacity-30"
+                  className="w-full py-3 bg-brand-accent/10 hover:bg-brand-accent text-brand-accent hover:text-white border border-brand-accent/30 rounded-xl font-bold text-xs uppercase tracking-widest transition-all disabled:opacity-30 disabled:pointer-events-none"
                 >
-                  Confirm Profile
+                  Save Tactical Profile
                 </button>
               </div>
             ) : (
-              <div className="py-2 border border-dashed border-white/5 rounded-xl opacity-30 italic text-[8px] text-slate-500 text-center">
-                Select an adversary from the database or create custom logic.
+              <div className="text-center py-4 bg-brand-black/20 rounded-xl border border-dashed border-white/10">
+                <p className="text-[10px] text-slate-500 uppercase tracking-widest">Select an opponent from the sidebar to continue</p>
               </div>
             )}
           </div>
-
-          {/* PHOTO EVIDENCE - More compact grid */}
-          <div className="space-y-2">
-            <label className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 block ml-1">Tactical Imagery (Visual Logic)</label>
-            <div className="relative">
-              {initialImage ? (
-                <div className="relative rounded-2xl overflow-hidden border border-brand-accent/20 bg-brand-black/40 h-32 shadow-lg group">
-                  <img src={initialImage} alt="Preview" className="w-full h-full object-contain" />
-                  <div className="absolute inset-0 bg-brand-black/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                    <button type="button" onClick={() => setInitialImage(null)} className="px-4 py-2 bg-brand-accent text-white rounded-lg font-black text-[8px] uppercase tracking-widest">Remove Image</button>
-                  </div>
-                </div>
-              ) : isCameraOpen ? (
-                <div className="relative rounded-2xl overflow-hidden border border-brand-info/30 h-36 bg-black shadow-xl">
-                  <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex space-x-2">
-                    <button type="button" onClick={capturePhoto} className="px-4 py-2 bg-brand-success text-white rounded-lg font-black text-[8px] uppercase tracking-widest">Capture</button>
-                    <button type="button" onClick={stopCamera} className="px-4 py-2 bg-brand-black/80 text-white rounded-lg font-black text-[8px] uppercase tracking-widest border border-white/10">Exit</button>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  <button 
-                    type="button" onClick={startCamera}
-                    className="flex flex-col items-center justify-center py-4 bg-brand-black/40 rounded-xl border border-dashed border-white/5 hover:border-brand-accent/40 transition-all group"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-500 group-hover:text-brand-accent mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                    </svg>
-                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 group-hover:text-white">Camera</span>
-                  </button>
-                  <button 
-                    type="button" onClick={() => fileInputRef.current?.click()}
-                    className="flex flex-col items-center justify-center py-4 bg-brand-black/40 rounded-xl border border-dashed border-white/5 hover:border-brand-info/40 transition-all group"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-500 group-hover:text-brand-info mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
-                    <span className="text-[8px] font-black uppercase tracking-widest text-slate-500 group-hover:text-white">Upload</span>
-                  </button>
-                  <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept="image/*" className="hidden" />
-                </div>
-              )}
-            </div>
-          </div>
-        </form>
-
-        {/* START BUTTON */}
-        <div className="shrink-0 pt-4">
-          <button form="negotiation-setup" type="submit" className="relative group w-full">
-            <div className="absolute -inset-1 bg-brand-accent rounded-xl blur-md opacity-20 group-hover:opacity-40 transition duration-500"></div>
-            <div className="relative w-full accent-gradient py-3.5 rounded-xl font-black uppercase text-sm italic tracking-tight text-white flex items-center justify-center space-x-3 shadow-lg transform transition-all group-hover:translate-y-[-2px] group-active:translate-y-[1px]">
-              <span className="tracking-[0.1em]">Engage Adversary</span>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-            </div>
+          
+          <button type="submit" className="w-full py-4 accent-gradient text-white font-black italic uppercase tracking-[0.2em] rounded-2xl shadow-xl hover:translate-y-[-2px] active:translate-y-[1px] transition-all">
+            Initiate Negotiation
           </button>
-        </div>
+        </form>
       </div>
 
-      {/* RIGHT PANEL: PERSONA SELECTION */}
-      <div className="w-full lg:w-[380px] bg-brand-black/40 flex flex-col shrink-0 min-h-0 relative z-20">
-        <div className="absolute inset-y-0 left-0 w-px bg-gradient-to-b from-transparent via-white/5 to-transparent"></div>
-        <div className="p-6 pb-3 shrink-0">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex flex-col">
-              <label className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-500">Adversary Database</label>
-              <span className="text-[7px] font-mono text-brand-accent mt-0.5 tracking-widest">v5.2 ACTIVE_SCAN</span>
-            </div>
-            <div className="flex space-x-1">
-              <div className="w-1 h-1 bg-brand-accent rounded-full animate-pulse"></div>
-              <div className="w-1 h-1 bg-brand-accent/30 rounded-full"></div>
-            </div>
-          </div>
+      {/* PERSONA LIST */}
+      <div className="w-full md:w-[320px] bg-brand-black/20 p-6 overflow-y-auto custom-scrollbar flex flex-col">
+        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] mb-6 border-b border-white/5 pb-2">Available Opponents</label>
+        <div className="space-y-3 flex-1">
+          {allPersonas.map(p => (
+            <button
+              key={p.id} onClick={() => setSelectedPersonaId(p.id)}
+              className={`w-full flex items-center space-x-4 p-4 rounded-2xl border transition-all group ${
+                selectedPersonaId === p.id 
+                ? 'bg-white/5 border-brand-accent/50 shadow-lg shadow-brand-accent/5' 
+                : 'border-transparent hover:bg-white/5'
+              }`}
+            >
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${p.bg} flex items-center justify-center text-2xl shadow-inner group-hover:scale-105 transition-transform`}>
+                {p.icon}
+              </div>
+              <div className="text-left overflow-hidden">
+                <span className={`block text-xs font-black uppercase tracking-wider truncate ${selectedPersonaId === p.id ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`}>
+                  {p.name}
+                </span>
+                <span className="text-[8px] font-bold text-slate-600 uppercase tracking-widest mt-0.5">
+                  {p.id.startsWith('custom_') ? 'Custom Profile' : 'System Native'}
+                </span>
+              </div>
+            </button>
+          ))}
         </div>
         
-        <div className="flex-1 overflow-y-auto px-5 pb-8 custom-scrollbar space-y-2">
-          {allPersonas.map((p) => {
-            const isCustom = 'traits' in p;
-            return (
-              <button
-                key={p.id} type="button" onClick={() => setSelectedPersonaId(p.id)}
-                className={`w-full p-3.5 rounded-xl border transition-all duration-200 flex items-center space-x-3 text-left group relative overflow-hidden ${
-                  selectedPersonaId === p.id 
-                  ? 'bg-white/5 border-brand-accent/40 shadow-inner' 
-                  : 'bg-transparent border-white/5 hover:bg-white/[0.02]'
-                }`}
+        {selectedPersonaId.startsWith('custom_') && (
+           <div className="mt-6 pt-6 border-t border-white/5">
+              <button 
+                onClick={() => {
+                  const updated = customPersonas.filter(p => p.id !== selectedPersonaId);
+                  setCustomPersonas(updated);
+                  localStorage.setItem('custom_personas', JSON.stringify(updated));
+                  setSelectedPersonaId(DEFAULT_PERSONAS[0].id);
+                }}
+                className="w-full py-2 text-[8px] font-black text-rose-500/60 hover:text-rose-500 uppercase tracking-[0.2em] transition-colors"
               >
-                <div className={`shrink-0 w-9 h-9 rounded-lg bg-gradient-to-br ${p.bg} flex items-center justify-center text-lg shadow-xl border border-white/5 transform group-hover:scale-105 transition-transform`}>{p.icon}</div>
-                <div className="flex-1 min-w-0">
-                  <div className={`font-black text-[10px] uppercase tracking-wider truncate transition-colors ${selectedPersonaId === p.id ? 'text-white' : 'text-slate-500 group-hover:text-slate-300'}`}>{p.name}</div>
-                  <div className="text-[7px] font-mono text-slate-600 mt-0.5 uppercase tracking-tighter">
-                    {isCustom ? 'Modified Logic' : 'Standard Profile'}
-                  </div>
-                </div>
-                {isCustom && (
-                  <button 
-                    onClick={(e) => handleDeleteCustomPersona(e, p.id)}
-                    className="p-1.5 opacity-0 group-hover:opacity-100 hover:text-brand-accent transition-all"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                )}
+                Delete Custom Profile
               </button>
-            );
-          })}
-        </div>
+           </div>
+        )}
       </div>
     </div>
   );
